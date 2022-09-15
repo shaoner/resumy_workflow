@@ -1,0 +1,53 @@
+name: release
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  RESUME_TARGET: out/Anakin_Skywalker_resume.pdf
+
+jobs:
+  publish:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install requirements
+        run: pip install resumy
+
+      - name: Build resume
+        run: make
+        
+      - name: Set version as short sha
+        run: echo "VERSION=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+
+      - name: Get asset name
+        run: echo "RESUME_NAME=`basename ${RESUME_TARGET}`" >> $GITHUB_ENV
+
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.VERSION }}
+          release_name: Release ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+
+      - name: Upload pdf
+        id: upload-release-pdf
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.RESUME_TARGET }}
+          asset_name: ${{ env.RESUME_NAME }}
+          asset_content_type: application/pdf
